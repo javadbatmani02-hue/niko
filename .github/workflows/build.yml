@@ -1,0 +1,38 @@
+name: Build Niko APK
+on:
+  push:
+    branches: ["main", "master", "niko"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare
+        run: |
+          Z=$(ls *.zip 2>/dev/null | head -1)
+          if [ -n "$Z" ] && [ ! -f app/build.gradle ]; then
+            unzip -o -q "$Z" -d _x
+            D=$(dirname "$(find _x -name settings.gradle | head -1)")
+            cp -r "$D"/. .
+          fi
+          rm -rf _x
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.2'
+
+      - run: gradle assembleDebug --no-daemon --stacktrace
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: app-debug
+          path: app/build/outputs/apk/debug/*.apk
